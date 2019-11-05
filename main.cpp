@@ -23,16 +23,20 @@ int main() {
 
 
 
-
     LIST(Q);
 
     // UPDATED
 
-    for (int i = 1; i <= 20; i++)
-        Q.push_back(i);
+    for (int i = 1; i <= 5; i++)
+        Q.push_back(i * 10);
 
-    for (int i = 1; i <= 10; i++)
-        Q.erase(rand() % 20 + 1);
+    for (int i = 1; i <= 5; i++)
+        Q.add_after(i, i * 100);
+
+    Q.erase(3);
+    Q.erase(8);
+
+    Q.sort();
 
     Q.dump_picture(true);
 

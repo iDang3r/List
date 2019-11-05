@@ -11,15 +11,19 @@
 
 typedef int elem_t;
 
+const long long Kanareyka_const = LONG_LONG_MAX;
+
 struct List {
-    const int MAX_SIZE_ = 16;
-    const elem_t poison_val_ = -9999999;
+    long long kanareyka1_= Kanareyka_const;
+
+    static const int    MAX_SIZE_   = 16;
+    const elem_t poison_val_ = INT_MAX;
 
     int size_ = 0;
 
     elem_t* data_ = nullptr;
-    int* next_ = nullptr;
-    int* prev_ = nullptr;
+    int* next_    = nullptr;
+    int* prev_    = nullptr;
 
     int head_ = 0;
     int tail_ = 0;
@@ -28,13 +32,20 @@ struct List {
     bool is_sorted_ = true;
 
     char* name_ = nullptr;
-    int errno_ = 0;
+    int  errno_ = 0;
+
+    long long kanareyka2_= Kanareyka_const;
+
+    size_t list_hash_ = 0;
+    size_t data_hash_ = 0;
+    size_t next_hash_ = 0;
+    size_t prev_hash_ = 0;
 
     List(const char* name = "NO_NAME");
 
     ~List();
 
-    void dump_(const char* flag);
+    void dump_(const char* file, const char* func, int line, const char* flag = "OK");
 
     void dump_picture(bool with_free = false);
 
@@ -71,6 +82,10 @@ struct List {
     int get_prev_index(int pos);
 
     elem_t& operator[](int num);
+
+    void sort();
+
+    int is_ok();
 
 };
 
@@ -145,8 +160,17 @@ List::~List() {
     poison(&name_);
 }
 
-void List::dump_(const char* flag) {
+void List::dump_(const char* file, const char* func, int line, const char* flag) {
+    printf("<<<-------- DUMP -------->>>\n");
+    printf("File: %s\n", file);
+    printf("Function: %s\n", func);
+    printf("Line: %d\n", line);
+    printf("List \"%s\"[%p] (%s)\n", name_, this, flag);
 
+
+
+    printf("}\n");
+    printf("<<<-----END OF DUMP ----->>>\n");
 }
 
 void List::dump_picture(bool with_free) {
@@ -294,7 +318,7 @@ int List::push_front(elem_t value) {
 }
 
 int List::add_after(int pos, elem_t value) {
-    if (data_[pos] == poison_val_) {
+    if (pos <= 0 || pos > MAX_SIZE_ || data_[pos] == poison_val_) {
         dump(DUMP_INFO, "undefined element with index: pos");
         return -1;
     }
@@ -331,7 +355,7 @@ int List::add_after(int pos, elem_t value) {
 }
 
 int List::add_before(int pos, elem_t value) {
-    if (data_[pos] == poison_val_) {
+    if (pos <= 0 || pos > MAX_SIZE_ || data_[pos] == poison_val_) {
         dump(DUMP_INFO, "undefined element with index: pos");
         return -1;
     }
@@ -478,7 +502,7 @@ int List::size() {
 }
 
 int List::get_next_index(int pos) {
-    if (data_[pos] == poison_val_) {
+    if (pos <= 0 || pos > MAX_SIZE_ || data_[pos] == poison_val_) {
         dump(DUMP_INFO, "undefined element with index: pos");
         return -1;
     }
@@ -487,7 +511,7 @@ int List::get_next_index(int pos) {
 }
 
 int List::get_prev_index(int pos) {
-    if (data_[pos] == poison_val_) {
+    if (pos <= 0 || pos > MAX_SIZE_ || data_[pos] == poison_val_) {
         dump(DUMP_INFO, "undefined element with index: pos");
         return -1;
     }
@@ -502,12 +526,63 @@ elem_t& List::operator[](int num) {
         return data_[0];
     }
 
+    if (is_sorted_)
+        return data_[num];
+
     int index = head_;
 
     for (int i = 1; i < num; i++)
         index = next_[index];
 
     return data_[index];
+}
+
+void List::sort() {
+    if (is_sorted_)
+        return;
+
+    if (size_ <= 0)
+        return;
+
+    elem_t* data_sorting = (elem_t*)calloc(MAX_SIZE_ + 1, sizeof(elem_t));
+
+    if (data_sorting == nullptr) {
+        dump(DUMP_INFO, "memory for List sort was not allocated");
+        assert(ERROR);
+        return;
+    }
+
+    data_sorting[0] = 0;
+
+    for (int i = 1; head_ != 0; i++, head_ = next_[head_])
+        data_sorting[i] = data_[head_];
+
+    for (int i = size_ + 1; i <= MAX_SIZE_; i++)
+        data_sorting[i] = poison_val_;
+
+    for (int i = 1; i < size_; i++)
+        next_[i] = i + 1;
+    next_[size_] = 0;
+
+    // for free_
+    for (int i = size_ + 1; i < MAX_SIZE_; i++)
+        next_[i] = i + 1;
+
+    next_[MAX_SIZE_] = 0;
+
+    head_ = 1;
+    tail_ = size_;
+    free_ = size_ + 1;
+
+    if (size_ == MAX_SIZE_)
+        free_ = 0;
+
+    for (int i = size_; i > 1; i--)
+        prev_[i] = i - 1;
+    prev_[1] = 0;
+
+    free(data_);
+    data_ = data_sorting;
 }
 
 #endif //LIST_MY_LIST_H
