@@ -22,6 +22,8 @@ int main() {
 
     // UPDATED
 
+    A.push_front(1234);
+
     A.push_back(-9);
 
     A.dump_picture();
