@@ -12,7 +12,7 @@
 typedef int elem_t;
 
 struct List {
-    const int MAX_SIZE_ = 1024;
+    const int MAX_SIZE_ = 16;
     const elem_t poison_val_ = -9999999;
 
     int size_ = 0;
@@ -36,7 +36,7 @@ struct List {
 
     void dump_(const char* flag);
 
-    void dump_picture();
+    void dump_picture(bool with_free = false);
 
     int add_first_elem(elem_t value);
 
@@ -149,14 +149,12 @@ void List::dump_(const char* flag) {
 
 }
 
-void List::dump_picture() {
+void List::dump_picture(bool with_free) {
     FILE* out = fopen("/Users/alex/Desktop/pictures/list_uml.pu", "w");
 
     fprintf(out, "@startuml\n !define DARKORANGE\n !include style.puml\n class head_\n");
 
     fprintf(out, "note right: size_: %d\n", size_);
-
-//        fprintf(out, "head_ -up-> (size: %d)\n", size_);
 
     fprintf(out, "class tail_\n");
 
@@ -185,6 +183,23 @@ void List::dump_picture() {
     }
 
     fprintf(out, "tail_ ..> %d\n", tail_);
+
+    if (with_free) {
+        fprintf(out, "class free_\n");
+
+        for (int i = free_; i != 0; i = next_[i]) {
+            fprintf(out, "class %d {\n", i);
+            fprintf(out, "next: %d\n", next_[i]);
+            fprintf(out, "}\n");
+        }
+
+        fprintf(out, "free_ ..> %d\n", free_);
+        for (int i = free_; next_[i] != 0; i = next_[i]) {
+            fprintf(out, "%d -> %d\n", i, next_[i]);
+        }
+
+        fprintf(out, "%d -[hidden]-> free_\n", head_);
+    }
 
     fprintf(out, "@enduml\n");
 
@@ -228,6 +243,8 @@ int List::push_back(elem_t value) {
         return -1;
     }
 
+    is_sorted_ = false;
+
     int new_pos = free_;
     free_ = next_[free_];
 
@@ -258,6 +275,8 @@ int List::push_front(elem_t value) {
         dump(DUMP_INFO, "failed free_ pointer");
         return -1;
     }
+
+    is_sorted_ = false;
 
     int new_pos = free_;
     free_ = next_[free_];
@@ -294,6 +313,8 @@ int List::add_after(int pos, elem_t value) {
         return -1;
     }
 
+    is_sorted_ = false;
+
     int new_pos = free_;
     free_ = next_[free_];
 
@@ -329,6 +350,8 @@ int List::add_before(int pos, elem_t value) {
         return -1;
     }
 
+    is_sorted_ = false;
+
     int new_pos = free_;
     free_ = next_[free_];
 
@@ -350,6 +373,8 @@ int List::pop_back() {
         dump(DUMP_INFO, "pop_back was called from empty List");
         return -1;
     }
+
+    is_sorted_ = false;
 
     tail_ = prev_[del_pos];
     next_[prev_[del_pos]] = 0; // hide if you want to show all
@@ -374,6 +399,8 @@ int List::pop_front() {
         return -1;
     }
 
+    is_sorted_ = false;
+
     head_ = next_[del_pos];
     prev_[next_[del_pos]] = 0;
 
@@ -391,12 +418,7 @@ int List::pop_front() {
 }
 
 int List::erase(int del_pos) {
-    if (del_pos == 0) {
-        dump(DUMP_INFO, "erase was called from empty List");
-        return -1;
-    }
-
-    if (data_[del_pos] == poison_val_) {
+    if (del_pos <= 0 ||del_pos > MAX_SIZE_ || data_[del_pos] == poison_val_) {
         dump(DUMP_INFO, "undefined element with index: del_pos");
         return -1;
     }
@@ -407,6 +429,7 @@ int List::erase(int del_pos) {
     if (del_pos == tail_)
         return pop_back();
 
+    is_sorted_ = false;
 
     next_[prev_[del_pos]] = next_[del_pos];
     prev_[next_[del_pos]] = prev_[del_pos];

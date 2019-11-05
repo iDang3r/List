@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <iostream>
 #include <cassert>
+#include <ctime>
 
 using std::cin;
 using std::cout;
@@ -18,15 +19,25 @@ int main() {
         return 1;
     }
 
-    LIST(A);
+    srand(time(NULL));
+
+
+
+
+    LIST(Q);
 
     // UPDATED
 
-    A.push_front(1234);
+    for (int i = 1; i <= 20; i++)
+        Q.push_back(i);
 
-    A.push_back(-9);
+    for (int i = 1; i <= 10; i++)
+        Q.erase(rand() % 20 + 1);
 
-    A.dump_picture();
+    Q.dump_picture(true);
+
+
+
 
     cout << "\nEND\n";
     fclose(dump_file);
