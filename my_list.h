@@ -6,6 +6,8 @@
 #define LIST_MY_LIST_H
 
 #include "super_define.h"
+#include "my_list_enums.h"
+#include "MurMurHash.h"
 
 #define LIST(x) List x(#x);
 
@@ -13,11 +15,27 @@ typedef int elem_t;
 
 const long long Kanareyka_const = LONG_LONG_MAX;
 
+
+#define ASSERT_OK {                         \
+    if (errno_) {                           \
+        dump_(DUMP_INFO, "ASSERT_OK");      \
+        assert(ERROR);                      \
+    }                                       \
+    errno_ = is_ok();                       \
+    if (errno_) {                           \
+        dump_(DUMP_INFO, "ASSERT_OK");      \
+        assert(ERROR);                      \
+    }                                       \
+};                                          \
+
+//#undef ASSERT_OK
+//#define ASSERT_OK
+
 struct List {
     long long kanareyka1_= Kanareyka_const;
 
-    static const int    MAX_SIZE_   = 16;
-    const elem_t poison_val_ = INT_MAX;
+    static const int MAX_SIZE_   = 16;
+    const elem_t     poison_val_ = INT_MAX;
 
     int size_ = 0;
 
@@ -81,13 +99,21 @@ struct List {
 
     int get_prev_index(int pos);
 
-    elem_t& operator[](int num);
+    elem_t operator[](int num);
 
     void sort();
 
     int is_ok();
 
+    void rehash();
+
 };
+
+/*!
+ * Constructor for List
+ *
+ * @param[in] name name of List (For debug, default -> "NO_NAME")
+ */
 
 List::List(const char* name) {
     data_ = (elem_t*)calloc(MAX_SIZE_ + 1, sizeof(elem_t));
@@ -126,7 +152,15 @@ List::List(const char* name) {
 
     for (int i = 1; i <= MAX_SIZE_; i++)
         data_[i] = poison_val_;
+
+    rehash();
 }
+
+/*!
+ * Destructor for List
+ *
+ * includes security from double destructor
+ */
 
 List::~List() {
     if (data_ == errptr<elem_t>()) {
@@ -160,21 +194,56 @@ List::~List() {
     poison(&name_);
 }
 
+/*!
+ * Default dump for List
+ *
+ * prints file, func, line from call with flag (default -> "OK")
+ * prints errno_ with description
+ *
+ * @param[in] file full name of file
+ * @param[in] func name of function
+ * @param[in] line line
+ * @param[in] flag message of dump
+ */
+
 void List::dump_(const char* file, const char* func, int line, const char* flag) {
     printf("<<<-------- DUMP -------->>>\n");
+
     printf("File: %s\n", file);
     printf("Function: %s\n", func);
     printf("Line: %d\n", line);
-    printf("List \"%s\"[%p] (%s)\n", name_, this, flag);
+    printf("List \"%s\"[%p] (%s) {\n", name_, this, flag);
 
 
+    printf("Errno_ is: %d\n", errno_);
+    printf("Message: \033[1;31m");
+
+    printf("DUMP");
+
+    printf("\033[0m\n");
+
+    // TODO add print errno_ message
 
     printf("}\n");
+
     printf("<<<-----END OF DUMP ----->>>\n");
 }
 
+/*!
+ * Picture dump
+ *
+ * compiles SVG file and opens it, you can change settings of command to get PNG file
+ *
+ * @param[in] with_free true if you also need to show free 'elements' (default -> false)
+ */
+
 void List::dump_picture(bool with_free) {
     FILE* out = fopen("/Users/alex/Desktop/pictures/list_uml.pu", "w");
+
+    if (out == nullptr) {
+        dump(DUMP_INFO, "file not found");
+        return;
+    }
 
     fprintf(out, "@startuml\n !define DARKORANGE\n !include style.puml\n class head_\n");
 
@@ -232,9 +301,23 @@ void List::dump_picture(bool with_free) {
     system("open /Users/alex/Desktop/pictures/list_uml.svg");
 }
 
+/*!
+ * Default libruary function to add first element (if List is empty)
+ *
+ * @param[in] value value for adding
+ * @return phisical number of added element
+ */
+
 int List::add_first_elem(elem_t value) {
+    ASSERT_OK
+
     if (free_ == 0 || data_[free_] != poison_val_) {
         dump(DUMP_INFO, "failed free_ pointer");
+        return -1;
+    }
+
+    if (size_ != 0) {
+        dump(DUMP_INFO, "impossible call for add_first_elem");
         return -1;
     }
 
@@ -249,10 +332,22 @@ int List::add_first_elem(elem_t value) {
 
     size_++;
 
+    rehash();
+
+    ASSERT_OK
     return new_pos;
 }
 
+/*!
+ * Pushs the element at the end of List
+ *
+ * @param[in] value value for adding
+ * @return phisical number of added element
+ */
+
 int List::push_back(elem_t value) {
+    ASSERT_OK
+
     if (free_ == 0) {
         dump(DUMP_INFO, "List is full");
         return -1;
@@ -281,11 +376,23 @@ int List::push_back(elem_t value) {
 
     size_++;
 
+    rehash();
+
+    ASSERT_OK
     return new_pos;
 
 }
 
+/*!
+ * Pushs the element at the front of List
+ *
+ * @param[in] value value for adding
+ * @return phisical number of added element
+ */
+
 int List::push_front(elem_t value) {
+    ASSERT_OK
+
     if (free_ == 0) {
         dump(DUMP_INFO, "List is full");
         return -1;
@@ -314,10 +421,22 @@ int List::push_front(elem_t value) {
 
     size_++;
 
+    rehash();
+
+    ASSERT_OK
     return new_pos;
 }
 
+/*!
+ * Pushs the element after the set position in the List
+ *
+ * @param[in] value value for adding
+ * @return phisical number of added element
+ */
+
 int List::add_after(int pos, elem_t value) {
+    ASSERT_OK
+
     if (pos <= 0 || pos > MAX_SIZE_ || data_[pos] == poison_val_) {
         dump(DUMP_INFO, "undefined element with index: pos");
         return -1;
@@ -351,10 +470,22 @@ int List::add_after(int pos, elem_t value) {
 
     size_++;
 
+    rehash();
+
+    ASSERT_OK
     return new_pos;
 }
 
+/*!
+ * Pushs the element before the set position in the List
+ *
+ * @param[in] value value for adding
+ * @return phisical number of added element
+ */
+
 int List::add_before(int pos, elem_t value) {
+    ASSERT_OK
+
     if (pos <= 0 || pos > MAX_SIZE_ || data_[pos] == poison_val_) {
         dump(DUMP_INFO, "undefined element with index: pos");
         return -1;
@@ -388,10 +519,21 @@ int List::add_before(int pos, elem_t value) {
 
     size_++;
 
+    rehash();
+
+    ASSERT_OK
     return new_pos;
 }
 
+/*!
+ * Pops the element from the end of the List
+ *
+ * @return phisical number of erasing element
+ */
+
 int List::pop_back() {
+    ASSERT_OK
+
     int del_pos = tail_;
     if (del_pos == 0) {
         dump(DUMP_INFO, "pop_back was called from empty List");
@@ -413,10 +555,21 @@ int List::pop_back() {
     if (size_ == 0)
         head_ = 0;
 
+    rehash();
+
+    ASSERT_OK
     return 0;
 }
 
+/*!
+ * Pops the element from the front of the List
+ *
+ * @return phisical number of erasing element
+ */
+
 int List::pop_front() {
+    ASSERT_OK
+
     int del_pos = head_;
     if (del_pos == 0) {
         dump(DUMP_INFO, "pop_front was called from empty List");
@@ -438,10 +591,22 @@ int List::pop_front() {
     if (size_ == 0)
         tail_ = 0;
 
+    rehash();
+
+    ASSERT_OK
     return 0;
 }
 
+/*!
+ * Pops the element from the set position of the List
+ *
+ * param[in] del_pos phisical number of erasing element
+ * @return code of error
+ */
+
 int List::erase(int del_pos) {
+    ASSERT_OK
+
     if (del_pos <= 0 ||del_pos > MAX_SIZE_ || data_[del_pos] == poison_val_) {
         dump(DUMP_INFO, "undefined element with index: del_pos");
         return -1;
@@ -465,10 +630,22 @@ int List::erase(int del_pos) {
 
     size_--;
 
+    rehash();
+
+    ASSERT_OK
     return 0;
 }
 
+/*!
+ * Finds physical index of element in the List by the value
+ *
+ * @param[in] value item value
+ * @return code of error
+ */
+
 int List::find_index_by_value(int value) {
+    ASSERT_OK
+
     if (value == poison_val_) {
         dump(DUMP_INFO, "value is equal to poison_val_");
         return -1;
@@ -478,30 +655,75 @@ int List::find_index_by_value(int value) {
         if (data_[i] == value)
             return i;
 
+    ASSERT_OK
     return 0;
 }
 
+/*!
+ * Gets physical index of the 1st element
+ *
+ * @return physical index
+ */
+
 int List::front_index() {
+    ASSERT_OK
     return head_;
 }
 
+/*!
+ * Gets physical index of the last element
+ *
+ * @return physical index
+ */
+
 int List::back_index() {
+    ASSERT_OK
     return tail_;
 }
 
+/*!
+ * Gets value of the 1st element
+ *
+ * @return item value
+ */
+
 elem_t List::front() {
+    ASSERT_OK
     return data_[head_];
 }
 
+/*!
+ * Gets value of the last element
+ *
+ * @return item value
+ */
+
 elem_t List::back() {
+    ASSERT_OK
     return data_[tail_];
 }
 
+/*!
+ * Gets size of the List
+ *
+ * @return size
+ */
+
 int List::size() {
+    ASSERT_OK
     return size_;
 }
 
+/*!
+ * Gets physical index of the next element
+ *
+ * @param[in] pos physical index of during element
+ * @return physical index
+ */
+
 int List::get_next_index(int pos) {
+    ASSERT_OK
+
     if (pos <= 0 || pos > MAX_SIZE_ || data_[pos] == poison_val_) {
         dump(DUMP_INFO, "undefined element with index: pos");
         return -1;
@@ -510,7 +732,16 @@ int List::get_next_index(int pos) {
     return next_[pos];
 }
 
+/*!
+ * Gets physical index of the previous element
+ *
+ * @param[in] pos physical index of during element
+ * @return physical index
+ */
+
 int List::get_prev_index(int pos) {
+    ASSERT_OK
+
     if (pos <= 0 || pos > MAX_SIZE_ || data_[pos] == poison_val_) {
         dump(DUMP_INFO, "undefined element with index: pos");
         return -1;
@@ -519,7 +750,16 @@ int List::get_prev_index(int pos) {
     return prev_[pos];
 }
 
-elem_t& List::operator[](int num) {
+/*!
+ * Returns value of element by it's logical index
+ *
+ * @param[in] num logical index
+ * @return value of element
+ */
+
+elem_t List::operator[](int num) {
+    ASSERT_OK
+
     if (num <= 0 || num > size_) {
         dump(DUMP_INFO, "false logical number for List");
         assert(ERROR);
@@ -534,10 +774,17 @@ elem_t& List::operator[](int num) {
     for (int i = 1; i < num; i++)
         index = next_[index];
 
+    ASSERT_OK
     return data_[index];
 }
 
+/*!
+ * Sorts the List, as you want to get value by logical index in O(1)
+ */
+
 void List::sort() {
+    ASSERT_OK
+
     if (is_sorted_)
         return;
 
@@ -583,6 +830,78 @@ void List::sort() {
 
     free(data_);
     data_ = data_sorting;
+
+    rehash();
+
+    ASSERT_OK
+}
+
+/*!
+ * function for verification of the List
+ *
+ * uses 'list_errors' from 'my_list_enums' file
+ *
+ * @return number of ERROR
+ */
+
+int List::is_ok() {
+
+    if (0 > size_ || size_ > MAX_SIZE_)
+        return SIZE;
+
+    if (0 > head_ || head_ > MAX_SIZE_)
+        return HEAD_POINT;
+
+    if (0 > tail_ || tail_ > MAX_SIZE_)
+        return TAIL_POINT;
+
+    if (0 > free_ || free_ > MAX_SIZE_)
+        return FREE_POINT;
+
+    if (kanareyka1_ != Kanareyka_const || kanareyka2_ != Kanareyka_const)
+        return CANARIES;
+
+    if (list_hash_ != MurMurHash2((char*)this, sizeof(List) - 4 * sizeof(size_t)))
+        return LIST_HASH;
+
+    if (data_hash_ != MurMurHash2((char*)data_, (MAX_SIZE_ + 1) * sizeof(elem_t)))
+        return DATA_HASH;
+
+    if (next_hash_ != MurMurHash2((char*)next_, (MAX_SIZE_ + 1) * sizeof(int)))
+        return NEXT_HASH;
+
+    if (prev_hash_ != MurMurHash2((char*)prev_, (MAX_SIZE_ + 1) * sizeof(int)))
+        return PREV_HASH;
+
+    for (int i = head_; i != 0; i = next_[i]) {
+        if (data_[i] == poison_val_)
+            return DATA_ELEMS;
+    }
+
+    for (int i = free_; i != 0; i = next_[i]) {
+        if (data_[i] != poison_val_)
+            return FREE_ELEMS;
+    }
+
+    for (int i = tail_; i != 0; i = prev_[i]) {
+        if (data_[i] == poison_val_)
+            return PREV_ELEMS;
+    }
+
+    return OK;
+}
+
+/*!
+ * Function for calculating Hashes
+ *
+ * Writes the results in fields of List stucture
+ */
+
+void List::rehash() {
+    list_hash_ = MurMurHash2((char*)this, sizeof(List) - 4 * sizeof(size_t));
+    data_hash_ = MurMurHash2((char*)data_, (MAX_SIZE_ + 1) * sizeof(elem_t));
+    next_hash_ = MurMurHash2((char*)next_, (MAX_SIZE_ + 1) * sizeof(int));
+    prev_hash_ = MurMurHash2((char*)prev_, (MAX_SIZE_ + 1) * sizeof(int));
 }
 
 #endif //LIST_MY_LIST_H

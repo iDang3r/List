@@ -21,8 +21,6 @@ int main() {
 
     srand(time(NULL));
 
-
-
     LIST(Q);
 
     // UPDATED
@@ -39,9 +37,6 @@ int main() {
     Q.sort();
 
     Q.dump_picture(true);
-
-
-
 
     cout << "\nEND\n";
     fclose(dump_file);
